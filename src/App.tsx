@@ -509,7 +509,7 @@ function App() {
             )}
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 mt-12 mb-16">
             {isSubmitting && (
               <div className="bg-zinc-900 rounded-xl p-4 border border-gray-800">
                 <div className="flex items-center justify-between mb-2">
