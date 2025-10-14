@@ -135,10 +135,26 @@ Deno.serve(async (req: Request) => {
 
     const uploadedFiles: { name: string; path: string; url: string }[] = [];
 
-    for (const file of files) {
-      const timestamp = Date.now();
-      const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const filePath = `${submission.id}/${timestamp}_${sanitizedFileName}`;
+    const sanitizeForFilename = (str: string) => {
+      return str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '');
+    };
+
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    const sanitizedVille = sanitizeForFilename(ville || 'unknown');
+    const sanitizedEntreprise = sanitizeForFilename(entreprise);
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileNumber = String(i + 1).padStart(2, '0');
+      const fileExtension = file.name.split('.').pop() || 'jpg';
+      const newFileName = `${sanitizedVille}_${sanitizedEntreprise}_${dateStr}_${fileNumber}.${fileExtension}`;
+      const filePath = `${submission.id}/${newFileName}`;
 
       const arrayBuffer = await file.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
@@ -160,7 +176,7 @@ Deno.serve(async (req: Request) => {
         .getPublicUrl(filePath);
 
       uploadedFiles.push({
-        name: file.name,
+        name: newFileName,
         path: uploadData.path,
         url: urlData.publicUrl,
       });
