@@ -62,7 +62,7 @@ export function Router() {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-black/60 backdrop-blur-lg border-b border-gray-800/30'
+            ? 'bg-black/40 backdrop-blur-md border-b border-white/10'
             : 'bg-transparent'
         }`}
       >
