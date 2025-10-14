@@ -139,13 +139,40 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    const archiveResponse = await fetch(
+      `${Deno.env.get("SUPABASE_URL")}/functions/v1/create-archive`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          submissionId: submission.id,
+          ville: ville,
+          departement: departement,
+        }),
+      }
+    );
+
+    let archiveUrl = null;
+    let archiveName = null;
+
+    if (archiveResponse.ok) {
+      const archiveData = await archiveResponse.json();
+      archiveUrl = archiveData.archiveUrl;
+      archiveName = archiveData.archiveName;
+    } else {
+      console.error("Failed to create archive");
+    }
+
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
       console.error("RESEND_API_KEY not configured");
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: "Email service not configured",
-          uploadedFiles: uploadedFiles.length 
+          uploadedFiles: uploadedFiles.length
         }),
         {
           status: 500,
@@ -244,7 +271,19 @@ Deno.serve(async (req: Request) => {
                 <p style="color: #4b5563; line-height: 1.6; margin: 0; background-color: #f9fafb; padding: 16px; border-radius: 8px;">${description}</p>
               </div>
               ` : ''}
-              
+
+              ${archiveUrl ? `
+              <div style="margin-bottom: 32px; text-align: center;">
+                <a href="${archiveUrl}"
+                   style="display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(220, 38, 38, 0.3);">
+                  📦 Télécharger l'archive complète (${archiveName})
+                </a>
+                <p style="color: #6b7280; font-size: 14px; margin: 12px 0 0 0;">
+                  Tous les fichiers et l'audio dans une seule archive ZIP
+                </p>
+              </div>
+              ` : ''}
+
               <div style="margin-bottom: 24px;">
                 <h2 style="color: #374151; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">Photos (${uploadedFiles.length})</h2>
                 <table style="width: 100%; border-collapse: collapse; background-color: #f9fafb; border-radius: 8px; overflow: hidden;">
@@ -311,6 +350,7 @@ Deno.serve(async (req: Request) => {
         filesUploaded: uploadedFiles.length,
         emailSent: true,
         emailId: emailResult.id,
+        archiveUrl: archiveUrl,
       }),
       {
         status: 200,
