@@ -1,6 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import JSZip from "npm:jszip@3.10.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,108 +70,43 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const sanitizedVille = ville?.replace(/[^a-zA-Z0-9]/g, '_') || '';
-    const zipFileName = sanitizedVille && departement
-      ? `${sanitizedVille}_${departement}_${submissionId.substring(0, 8)}.zip`
-      : `projet_${submissionId.substring(0, 8)}.zip`;
-
-    console.log("Creating archive:", zipFileName);
-
-    const zipFilePath = `archives/${zipFileName}`;
-
-    const fileDataPromises = files.map(async (file) => {
-      const { data, error } = await supabase.storage
+    const fileUrls = files.map(file => {
+      const { data } = supabase.storage
         .from("construction-files")
-        .download(`${submissionId}/${file.name}`);
-
-      if (error || !data) {
-        console.error(`Error downloading file ${file.name}:`, error);
-        return null;
-      }
-
-      const arrayBuffer = await data.arrayBuffer();
+        .getPublicUrl(`${submissionId}/${file.name}`);
       return {
         name: file.name,
-        data: new Uint8Array(arrayBuffer),
+        url: data.publicUrl,
       };
     });
 
     if (submission.audio_description_url) {
-      const audioFileName = submission.audio_description_url.split('/').pop();
-      if (audioFileName) {
-        const { data: audioData, error: audioError } = await supabase.storage
-          .from("audio-recordings")
-          .download(audioFileName);
-
-        if (!audioError && audioData) {
-          const arrayBuffer = await audioData.arrayBuffer();
-          fileDataPromises.push(Promise.resolve({
-            name: `audio_description.webm`,
-            data: new Uint8Array(arrayBuffer),
-          }));
-        }
-      }
+      fileUrls.push({
+        name: "audio_description.webm",
+        url: submission.audio_description_url,
+      });
     }
 
     if (submission.video_url) {
-      const videoFileName = submission.video_url.split('/').pop();
-      if (videoFileName) {
-        const { data: videoData, error: videoError } = await supabase.storage
-          .from("video-recordings")
-          .download(videoFileName);
-
-        if (!videoError && videoData) {
-          const arrayBuffer = await videoData.arrayBuffer();
-          const extension = videoFileName.split('.').pop() || 'mp4';
-          fileDataPromises.push(Promise.resolve({
-            name: `video.${extension}`,
-            data: new Uint8Array(arrayBuffer),
-          }));
-        }
-      }
-    }
-
-    const fileDataArray = (await Promise.all(fileDataPromises)).filter((f) => f !== null);
-
-    const jszip = new JSZip();
-
-    for (const fileData of fileDataArray) {
-      if (fileData) {
-        jszip.file(fileData.name, fileData.data);
-      }
-    }
-
-    const zipData = await jszip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
-
-    const { error: uploadError } = await supabase.storage
-      .from("construction-files")
-      .upload(zipFilePath, zipData, {
-        contentType: "application/zip",
-        upsert: true,
+      const extension = submission.video_url.split('.').pop() || 'mp4';
+      fileUrls.push({
+        name: `video.${extension}`,
+        url: submission.video_url,
       });
-
-    if (uploadError) {
-      console.error("Error uploading ZIP:", uploadError);
-      return new Response(
-        JSON.stringify({ error: "Failed to create archive" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
     }
 
-    const { data: urlData } = supabase.storage
-      .from("construction-files")
-      .getPublicUrl(zipFilePath);
+    const sanitizedVille = ville?.replace(/[^a-zA-Z0-9]/g, '_') || '';
+    const archiveName = sanitizedVille && departement
+      ? `${sanitizedVille}_${departement}_${submissionId.substring(0, 8)}`
+      : `projet_${submissionId.substring(0, 8)}`;
 
-    console.log("Archive created successfully:", urlData.publicUrl);
+    console.log("Returning file list:", fileUrls.length);
 
     return new Response(
       JSON.stringify({
         success: true,
-        archiveUrl: urlData.publicUrl,
-        archiveName: zipFileName,
+        archiveName: archiveName,
+        files: fileUrls,
       }),
       {
         status: 200,

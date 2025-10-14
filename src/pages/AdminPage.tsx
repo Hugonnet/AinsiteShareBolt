@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Calendar, MapPin, Building, Filter, X, Download, Trash2, Edit2, Save, XCircle } from 'lucide-react';
+import JSZip from 'jszip';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -98,10 +99,30 @@ export function AdminPage() {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.archiveUrl) {
-          window.open(data.archiveUrl, '_blank');
+        if (data.files && data.files.length > 0) {
+          const zip = new JSZip();
+
+          for (const file of data.files) {
+            try {
+              const fileResponse = await fetch(file.url);
+              const blob = await fileResponse.blob();
+              zip.file(file.name, blob);
+            } catch (err) {
+              console.error(`Error downloading file ${file.name}:`, err);
+            }
+          }
+
+          const zipBlob = await zip.generateAsync({ type: 'blob' });
+          const url = URL.createObjectURL(zipBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${data.archiveName}.zip`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
         } else {
-          alert('Erreur: URL d\'archive non disponible');
+          alert('Erreur: Aucun fichier à télécharger');
         }
       } else {
         const errorData = await response.json();
