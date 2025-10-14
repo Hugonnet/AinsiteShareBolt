@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
 import App from './App';
 import { AdminPage } from './pages/AdminPage';
-import { Settings, Home } from 'lucide-react';
+import { LoginForm } from './components/LoginForm';
+import { Settings, Home, LogOut } from 'lucide-react';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 export function Router() {
   const [currentPage, setCurrentPage] = useState<'form' | 'admin'>('form');
   const [scrolled, setScrolled] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -15,6 +24,38 @@ export function Router() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogin = async (email: string, password: string) => {
+    setLoginError(null);
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setLoginError('Identifiants incorrects');
+      throw error;
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setCurrentPage('form');
+  };
 
   return (
     <div>
@@ -44,21 +85,34 @@ export function Router() {
                 Admin
               </button>
             ) : (
-              <button
-                onClick={() => setCurrentPage('form')}
-                className="px-4 py-2 bg-zinc-900/80 hover:bg-zinc-800 rounded-lg border border-gray-800 text-white flex items-center gap-2 transition-colors"
-              >
-                <Home className="w-4 h-4" />
-                Formulaire
-              </button>
+              <>
+                <button
+                  onClick={() => setCurrentPage('form')}
+                  className="px-4 py-2 bg-zinc-900/80 hover:bg-zinc-800 rounded-lg border border-gray-800 text-white flex items-center gap-2 transition-colors"
+                >
+                  <Home className="w-4 h-4" />
+                  Formulaire
+                </button>
+                {isAuthenticated && (
+                  <button
+                    onClick={handleLogout}
+                    className="px-4 py-2 bg-red-600/80 hover:bg-red-700 rounded-lg border border-red-800 text-white flex items-center gap-2 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Déconnexion
+                  </button>
+                )}
+              </>
             )}
           </nav>
         </div>
       </header>
 
-      <div className="pt-20">
+      <div className={currentPage === 'admin' && !isAuthenticated ? '' : 'pt-20'}>
         {currentPage === 'form' && <App />}
-        {currentPage === 'admin' && <AdminPage />}
+        {currentPage === 'admin' && (
+          isAuthenticated ? <AdminPage /> : <LoginForm onLogin={handleLogin} error={loginError} />
+        )}
       </div>
     </div>
   );

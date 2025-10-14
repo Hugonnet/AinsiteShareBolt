@@ -172,38 +172,59 @@ Deno.serve(async (req: Request) => {
     console.log("Starting archive creation for submission:", submission.id);
     console.log("Uploaded files count:", uploadedFiles.length);
 
-    try {
-      await new Promise(resolve => setTimeout(resolve, 3000));
+    const waitForFiles = async (retries = 5, delay = 2000) => {
+      for (let i = 0; i < retries; i++) {
+        const { data: checkFiles } = await supabase.storage
+          .from("construction-files")
+          .list(submission.id);
 
-      const archivePayload = {
-        submissionId: submission.id,
-        ville: ville,
-        departement: departement,
-      };
-      console.log("Archive request payload:", archivePayload);
-
-      const archiveResponse = await fetch(
-        `${Deno.env.get("SUPABASE_URL")}/functions/v1/create-archive`,
-        {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(archivePayload),
+        if (checkFiles && checkFiles.length >= uploadedFiles.length) {
+          console.log(`Files verified in storage (attempt ${i + 1}): ${checkFiles.length} files`);
+          return true;
         }
-      );
 
-      console.log("Archive response status:", archiveResponse.status);
+        console.log(`Waiting for files (attempt ${i + 1}/${retries})...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      return false;
+    };
 
-      if (archiveResponse.ok) {
-        const archiveData = await archiveResponse.json();
-        archiveUrl = archiveData.archiveUrl;
-        archiveName = archiveData.archiveName;
-        console.log("Archive created successfully:", { archiveName, archiveUrl });
+    try {
+      const filesReady = await waitForFiles();
+
+      if (!filesReady) {
+        console.error("Files not ready in storage after waiting");
       } else {
-        const errorText = await archiveResponse.text();
-        console.error("Archive creation failed:", archiveResponse.status, errorText);
+        const archivePayload = {
+          submissionId: submission.id,
+          ville: ville,
+          departement: departement,
+        };
+        console.log("Archive request payload:", archivePayload);
+
+        const archiveResponse = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/create-archive`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(archivePayload),
+          }
+        );
+
+        console.log("Archive response status:", archiveResponse.status);
+
+        if (archiveResponse.ok) {
+          const archiveData = await archiveResponse.json();
+          archiveUrl = archiveData.archiveUrl;
+          archiveName = archiveData.archiveName;
+          console.log("Archive created successfully:", { archiveName, archiveUrl });
+        } else {
+          const errorText = await archiveResponse.text();
+          console.error("Archive creation failed:", archiveResponse.status, errorText);
+        }
       }
     } catch (archiveError) {
       console.error("Archive error:", archiveError);
