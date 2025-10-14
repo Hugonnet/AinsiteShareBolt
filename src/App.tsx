@@ -338,7 +338,7 @@ function App() {
 
           <div>
             <label className="block text-white font-medium mb-3">
-              Décrivez votre prestation en 1 phrase
+              Décrivez votre prestation en 1 phrase avec nom de la localité si possible
             </label>
 
             {!audioRecorder.audioUrl ? (
