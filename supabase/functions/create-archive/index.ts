@@ -19,6 +19,8 @@ Deno.serve(async (req: Request) => {
   try {
     const { submissionId, ville, departement } = await req.json();
 
+    console.log("Archive request received:", { submissionId, ville, departement });
+
     if (!submissionId) {
       return new Response(
         JSON.stringify({ error: "Missing submissionId" }),
@@ -41,6 +43,7 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (dbError || !submission) {
+      console.error("Submission not found:", dbError);
       return new Response(
         JSON.stringify({ error: "Submission not found" }),
         {
@@ -50,9 +53,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    console.log("Submission found:", submission.id);
+
     const { data: files } = await supabase.storage
       .from("construction-files")
       .list(submissionId);
+
+    console.log("Files found:", files?.length || 0);
 
     if (!files || files.length === 0) {
       return new Response(
@@ -64,9 +71,12 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const zipFileName = ville && departement 
-      ? `${ville}_${departement}_${submissionId.substring(0, 8)}.zip`
+    const sanitizedVille = ville?.replace(/[^a-zA-Z0-9]/g, '_') || '';
+    const zipFileName = sanitizedVille && departement
+      ? `${sanitizedVille}_${departement}_${submissionId.substring(0, 8)}.zip`
       : `projet_${submissionId.substring(0, 8)}.zip`;
+
+    console.log("Creating archive:", zipFileName);
 
     const zipFilePath = `archives/${zipFileName}`;
 
@@ -178,6 +188,8 @@ Deno.serve(async (req: Request) => {
     const { data: urlData } = supabase.storage
       .from("construction-files")
       .getPublicUrl(zipFilePath);
+
+    console.log("Archive created successfully:", urlData.publicUrl);
 
     return new Response(
       JSON.stringify({

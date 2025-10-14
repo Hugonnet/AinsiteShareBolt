@@ -12,6 +12,7 @@ function App() {
     description: '',
   });
   const [files, setFiles] = useState<FileList | null>(null);
+  const [filePreviews, setFilePreviews] = useState<string[]>([]);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -48,6 +49,16 @@ function App() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFiles(e.target.files);
+
+      const previews: string[] = [];
+      Array.from(e.target.files).forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          previews.push(reader.result as string);
+          setFilePreviews([...previews]);
+        };
+        reader.readAsDataURL(file);
+      });
     }
   };
 
@@ -146,6 +157,7 @@ function App() {
       setSubmitStatus('success');
       setFormData({ entreprise: '', ville: '', departement: '', typeProjet: 'neuf', description: '' });
       setFiles(null);
+      setFilePreviews([]);
       setVideoFile(null);
       setVideoDuration(0);
       setUseAutoLocation(false);
@@ -166,14 +178,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-6 left-6">
-        <div className="text-2xl font-bold">
-          <span className="text-gray-400">@insite</span>
-          <span className="text-red-500">.net</span>
-        </div>
-      </div>
-
-      <div className="w-full max-w-2xl relative mt-16">
+      <div className="w-full max-w-2xl relative">
         <div className="text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
             Partagez vos réalisations
@@ -392,16 +397,35 @@ function App() {
               </p>
             </div>
             {files && files.length > 0 && (
-              <div className="mt-4 space-y-2">
-                {Array.from(files).map((file, index) => (
-                  <div key={index} className="flex items-center gap-2 text-gray-400 text-sm bg-black/50 px-3 py-2 rounded-lg border border-gray-800">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <span className="truncate flex-1">{file.name}</span>
-                    <span className="text-gray-500">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </span>
-                  </div>
-                ))}
+              <div className="mt-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {Array.from(files).map((file, index) => (
+                    <div key={index} className="relative group">
+                      {filePreviews[index] ? (
+                        <div className="relative aspect-square rounded-lg overflow-hidden border border-gray-700 bg-black/50">
+                          <img
+                            src={filePreviews[index]}
+                            alt={file.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute bottom-2 left-2 right-2">
+                              <p className="text-white text-xs font-medium truncate">{file.name}</p>
+                              <p className="text-gray-300 text-xs">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="aspect-square rounded-lg bg-black/50 border border-gray-700 flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                            <p className="text-gray-500 text-xs">Chargement...</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
