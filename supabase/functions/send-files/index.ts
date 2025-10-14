@@ -169,8 +169,18 @@ Deno.serve(async (req: Request) => {
     let archiveUrl = null;
     let archiveName = null;
 
+    console.log("Starting archive creation for submission:", submission.id);
+    console.log("Uploaded files count:", uploadedFiles.length);
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      const archivePayload = {
+        submissionId: submission.id,
+        ville: ville,
+        departement: departement,
+      };
+      console.log("Archive request payload:", archivePayload);
 
       const archiveResponse = await fetch(
         `${Deno.env.get("SUPABASE_URL")}/functions/v1/create-archive`,
@@ -180,19 +190,17 @@ Deno.serve(async (req: Request) => {
             "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            submissionId: submission.id,
-            ville: ville,
-            departement: departement,
-          }),
+          body: JSON.stringify(archivePayload),
         }
       );
+
+      console.log("Archive response status:", archiveResponse.status);
 
       if (archiveResponse.ok) {
         const archiveData = await archiveResponse.json();
         archiveUrl = archiveData.archiveUrl;
         archiveName = archiveData.archiveName;
-        console.log("Archive created:", archiveName, archiveUrl);
+        console.log("Archive created successfully:", { archiveName, archiveUrl });
       } else {
         const errorText = await archiveResponse.text();
         console.error("Archive creation failed:", archiveResponse.status, errorText);
@@ -200,6 +208,8 @@ Deno.serve(async (req: Request) => {
     } catch (archiveError) {
       console.error("Archive error:", archiveError);
     }
+
+    console.log("Final archive values before email:", { archiveUrl, archiveName });
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (!resendApiKey) {
@@ -318,17 +328,23 @@ Deno.serve(async (req: Request) => {
               </div>
               ` : ''}
 
-              ${archiveUrl ? `
+              ${archiveUrl && archiveName ? `
               <div style="margin-bottom: 32px; text-align: center;">
                 <a href="${archiveUrl}"
                    style="display: inline-block; background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(220, 38, 38, 0.3);">
                   📦 Télécharger l'archive complète (${archiveName})
                 </a>
                 <p style="color: #6b7280; font-size: 14px; margin: 12px 0 0 0;">
-                  Tous les fichiers et l'audio dans une seule archive ZIP
+                  Tous les fichiers${audioUrl ? ', l\'audio' : ''}${videoUrl ? ' et la vidéo' : ''} dans une seule archive ZIP
                 </p>
               </div>
-              ` : ''}
+              ` : `
+              <div style="margin-bottom: 24px; padding: 16px; background-color: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px;">
+                <p style="color: #92400e; font-size: 14px; margin: 0;">
+                  ⚠️ L'archive ZIP n'a pas pu être créée automatiquement. Veuillez télécharger les fichiers individuellement.
+                </p>
+              </div>
+              `}
 
               <div style="margin-bottom: 24px;">
                 <h2 style="color: #374151; font-size: 18px; font-weight: 600; margin: 0 0 16px 0;">Photos (${uploadedFiles.length})</h2>

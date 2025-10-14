@@ -21,14 +21,14 @@ export function Router() {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-black/80 backdrop-blur-md border-b border-gray-800/50'
+            ? 'bg-black/60 backdrop-blur-lg border-b border-gray-800/30'
             : 'bg-transparent'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
           <button
             onClick={() => setCurrentPage('form')}
-            className="text-2xl font-bold hover:opacity-80 transition-opacity"
+            className="text-3xl font-bold hover:opacity-80 transition-opacity"
           >
             <span className="text-gray-400">@insite</span>
             <span className="text-red-500">.net</span>
