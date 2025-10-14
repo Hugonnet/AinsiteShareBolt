@@ -13,33 +13,33 @@ function ProjectFiles({ submissionId }: { submissionId: string }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const loadFiles = async () => {
+      try {
+        const { data } = await supabase.storage
+          .from('construction-files')
+          .list(submissionId);
+
+        if (data && data.length > 0) {
+          const fileUrls = data.map(file => {
+            const { data: urlData } = supabase.storage
+              .from('construction-files')
+              .getPublicUrl(`${submissionId}/${file.name}`);
+            return {
+              name: file.name,
+              url: urlData.publicUrl,
+            };
+          });
+          setFiles(fileUrls);
+        }
+      } catch (error) {
+        console.error('Error loading files:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadFiles();
   }, [submissionId]);
-
-  const loadFiles = async () => {
-    try {
-      const { data } = await supabase.storage
-        .from('construction-files')
-        .list(submissionId);
-
-      if (data && data.length > 0) {
-        const fileUrls = data.map(file => {
-          const { data: urlData } = supabase.storage
-            .from('construction-files')
-            .getPublicUrl(`${submissionId}/${file.name}`);
-          return {
-            name: file.name,
-            url: urlData.publicUrl,
-          };
-        });
-        setFiles(fileUrls);
-      }
-    } catch (error) {
-      console.error('Error loading files:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (
