@@ -85,7 +85,7 @@ function ProjectFiles({ submissionId }: { submissionId: string }) {
   return (
     <div>
       <h3 className="text-lg font-semibold mb-3">Photos et fichiers ({files.length})</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {files.map((file) => (
           <div key={file.name} className="group relative bg-zinc-800 rounded-lg overflow-hidden aspect-square">
             {isImage(file.name) ? (
@@ -369,52 +369,54 @@ export function AdminPage() {
           {filteredSubmissions.map(submission => (
             <div
               key={submission.id}
-              className="bg-zinc-900 rounded-xl p-6 border border-gray-800 hover:border-gray-700 transition-all cursor-pointer"
+              className="bg-zinc-900 rounded-xl p-4 sm:p-6 border border-gray-800 hover:border-gray-700 transition-all cursor-pointer"
               onClick={() => setSelectedSubmission(submission)}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div>
+              <div className="flex flex-col sm:flex-row items-start justify-between mb-4 gap-3">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
-                    <Building className="w-5 h-5 text-red-500" />
-                    <h3 className="text-xl font-semibold">{submission.entreprise}</h3>
+                    <Building className="w-5 h-5 text-red-500 flex-shrink-0" />
+                    <h3 className="text-lg sm:text-xl font-semibold truncate">{submission.entreprise}</h3>
                   </div>
-                  <div className="flex items-center gap-4 text-gray-400 text-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-gray-400 text-sm">
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      {new Date(submission.created_at).toLocaleDateString('fr-FR', {
+                      <Calendar className="w-4 h-4 flex-shrink-0" />
+                      <span className="truncate">{new Date(submission.created_at).toLocaleDateString('fr-FR', {
                         day: '2-digit',
                         month: '2-digit',
                         year: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
-                      })}
+                      })}</span>
                     </div>
                     {submission.ville && (
                       <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4" />
-                        {submission.ville} ({submission.departement})
+                        <MapPin className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate">{submission.ville} ({submission.departement})</span>
                       </div>
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-shrink-0 w-full sm:w-auto">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       startEditing(submission);
                     }}
-                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2 transition-colors"
+                    className="flex-1 sm:flex-none px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center justify-center gap-2 transition-colors"
                   >
                     <Edit2 className="w-4 h-4" />
+                    <span className="sm:hidden">Modifier</span>
                   </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteSubmission(submission.id);
                     }}
-                    className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2 transition-colors"
+                    className="flex-1 sm:flex-none px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg flex items-center justify-center gap-2 transition-colors"
                   >
                     <Trash2 className="w-4 h-4" />
+                    <span className="sm:hidden">Supprimer</span>
                   </button>
                   <button
                     onClick={(e) => {
@@ -422,7 +424,7 @@ export function AdminPage() {
                       downloadArchive(submission);
                     }}
                     disabled={downloadingId === submission.id}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 sm:flex-none px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {downloadingId === submission.id ? (
                       <>
@@ -431,7 +433,7 @@ export function AdminPage() {
                     ) : (
                       <>
                         <Download className="w-4 h-4" />
-                        Archive
+                        <span className="hidden sm:inline">Archive</span>
                       </>
                     )}
                   </button>
@@ -466,20 +468,20 @@ export function AdminPage() {
 
       {editingSubmission && (
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50"
           onClick={cancelEditing}
         >
           <div
-            className="bg-zinc-900 rounded-xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-800"
+            className="bg-zinc-900 rounded-xl p-4 sm:p-6 md:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between mb-6">
-              <h2 className="text-2xl font-bold">Modifier le projet</h2>
+            <div className="flex items-start justify-between mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold">Modifier le projet</h2>
               <button
                 onClick={cancelEditing}
-                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
@@ -546,17 +548,17 @@ export function AdminPage() {
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <button
                   onClick={cancelEditing}
-                  className="flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                  className="flex-1 px-4 sm:px-6 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
                 >
                   <XCircle className="w-5 h-5" />
                   Annuler
                 </button>
                 <button
                   onClick={saveEdit}
-                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                  className="flex-1 px-4 sm:px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
                 >
                   <Save className="w-5 h-5" />
                   Enregistrer
@@ -569,17 +571,17 @@ export function AdminPage() {
 
       {selectedSubmission && (
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50"
           onClick={() => setSelectedSubmission(null)}
         >
           <div
-            className="bg-zinc-900 rounded-xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-800"
+            className="bg-zinc-900 rounded-xl p-4 sm:p-6 md:p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-800"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold mb-2">{selectedSubmission.entreprise}</h2>
-                <p className="text-gray-400">
+            <div className="flex items-start justify-between mb-4 sm:mb-6 gap-3">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl sm:text-2xl font-bold mb-2 break-words">{selectedSubmission.entreprise}</h2>
+                <p className="text-sm sm:text-base text-gray-400">
                   {new Date(selectedSubmission.created_at).toLocaleDateString('fr-FR', {
                     day: '2-digit',
                     month: 'long',
@@ -591,9 +593,9 @@ export function AdminPage() {
               </div>
               <button
                 onClick={() => setSelectedSubmission(null)}
-                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
             </div>
 
@@ -650,17 +652,17 @@ export function AdminPage() {
                 </div>
               )}
 
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => startEditing(selectedSubmission)}
-                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                  className="flex-1 px-4 sm:px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
                 >
                   <Edit2 className="w-5 h-5" />
                   Modifier
                 </button>
                 <button
                   onClick={() => deleteSubmission(selectedSubmission.id)}
-                  className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                  className="flex-1 px-4 sm:px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
                 >
                   <Trash2 className="w-5 h-5" />
                   Supprimer
@@ -668,12 +670,12 @@ export function AdminPage() {
                 <button
                   onClick={() => downloadArchive(selectedSubmission)}
                   disabled={downloadingId === selectedSubmission.id}
-                  className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 px-4 sm:px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {downloadingId === selectedSubmission.id ? (
                     <>
                       <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Création...
+                      <span className="hidden sm:inline">Création...</span>
                     </>
                   ) : (
                     <>
