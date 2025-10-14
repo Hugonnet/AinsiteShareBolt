@@ -84,27 +84,33 @@ function ProjectFiles({ submissionId }: { submissionId: string }) {
 
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-2">Photos et fichiers</h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <h3 className="text-lg font-semibold mb-3">Photos et fichiers ({files.length})</h3>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {files.map((file) => (
-          <div key={file.name} className="bg-zinc-800 rounded-lg overflow-hidden">
+          <div key={file.name} className="group relative bg-zinc-800 rounded-lg overflow-hidden aspect-square">
             {isImage(file.name) ? (
-              <a href={file.url} target="_blank" rel="noopener noreferrer">
+              <a href={file.url} target="_blank" rel="noopener noreferrer" className="block h-full">
                 <img
                   src={file.url}
                   alt={file.name}
-                  className="w-full h-40 object-cover hover:opacity-80 transition-opacity cursor-pointer"
+                  className="w-full h-full object-cover transition-all duration-300 group-hover:scale-110"
+                  loading="lazy"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <div className="absolute bottom-0 left-0 right-0 p-2">
+                    <p className="text-white text-xs font-medium truncate">{file.name}</p>
+                  </div>
+                </div>
               </a>
             ) : (
               <a
                 href={file.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex flex-col items-center justify-center h-40 hover:bg-zinc-700 transition-colors"
+                className="flex flex-col items-center justify-center h-full hover:bg-zinc-700 transition-colors"
               >
-                <FileText className="w-12 h-12 text-gray-400 mb-2" />
-                <span className="text-sm text-gray-400 px-2 text-center truncate w-full">
+                <FileText className="w-10 h-10 text-gray-400 mb-2" />
+                <span className="text-xs text-gray-400 px-2 text-center truncate w-full">
                   {file.name}
                 </span>
               </a>

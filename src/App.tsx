@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Upload, Send, Mic, Square, Trash2, Play, MapPin, AlertCircle, Video, X } from 'lucide-react';
+import { Upload, Send, Mic, Square, Trash2, Play, MapPin, AlertCircle, Video, X, CheckCircle, XCircle } from 'lucide-react';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useAudioRecorder } from './hooks/useAudioRecorder';
 
@@ -18,6 +18,7 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [useAutoLocation, setUseAutoLocation] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const location = useGeolocation();
   const audioRecorder = useAudioRecorder();
@@ -103,8 +104,10 @@ function App() {
     e.preventDefault();
     setIsSubmitting(true);
     setSubmitStatus('idle');
+    setUploadProgress(0);
 
     try {
+      setUploadProgress(10);
       const formDataToSend = new FormData();
       formDataToSend.append('entreprise', formData.entreprise);
       formDataToSend.append('ville', formData.ville);
@@ -139,6 +142,8 @@ function App() {
         }
       }
 
+      setUploadProgress(30);
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-files`,
         {
@@ -150,10 +155,13 @@ function App() {
         }
       );
 
+      setUploadProgress(70);
+
       if (!response.ok) {
         throw new Error('Échec de l\'envoi');
       }
 
+      setUploadProgress(100);
       setSubmitStatus('success');
       setFormData({ entreprise: '', ville: '', departement: '', typeProjet: 'neuf', description: '' });
       setFiles(null);
@@ -167,10 +175,14 @@ function App() {
       const videoInput = document.getElementById('video-upload') as HTMLInputElement;
       if (videoInput) videoInput.value = '';
 
-      setTimeout(() => setSubmitStatus('idle'), 5000);
+      setTimeout(() => {
+        setSubmitStatus('idle');
+        setUploadProgress(0);
+      }, 5000);
     } catch (error) {
       console.error('Erreur:', error);
       setSubmitStatus('error');
+      setUploadProgress(0);
     } finally {
       setIsSubmitting(false);
     }
@@ -189,15 +201,30 @@ function App() {
         </div>
 
         {submitStatus === 'success' && (
-          <div className="mb-6 p-4 bg-green-500/20 border border-green-500/50 rounded-xl flex items-center gap-3">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <p className="text-green-400">Fichiers envoyés avec succès!</p>
+          <div className="mb-6 p-5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 rounded-xl shadow-lg animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <CheckCircle className="w-8 h-8 text-green-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-green-400 font-semibold text-lg mb-1">Projet envoyé avec succès!</h3>
+                <p className="text-green-300/80 text-sm">Vos fichiers ont été téléchargés et sont maintenant disponibles dans l'administration.</p>
+              </div>
+            </div>
           </div>
         )}
 
         {submitStatus === 'error' && (
-          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/50 rounded-xl">
-            <p className="text-red-400">Une erreur est survenue. Veuillez réessayer.</p>
+          <div className="mb-6 p-5 bg-gradient-to-r from-red-500/20 to-rose-500/20 border border-red-500/50 rounded-xl shadow-lg animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0">
+                <XCircle className="w-8 h-8 text-red-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-red-400 font-semibold text-lg mb-1">Erreur lors de l'envoi</h3>
+                <p className="text-red-300/80 text-sm">Une erreur est survenue. Veuillez vérifier votre connexion et réessayer.</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -482,22 +509,40 @@ function App() {
             )}
           </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 hover:from-pink-700 hover:via-purple-700 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Envoi en cours...
-              </>
-            ) : (
-              <>
-                Soumettre le projet
-              </>
+          <div className="space-y-3">
+            {isSubmitting && (
+              <div className="bg-zinc-900 rounded-xl p-4 border border-gray-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-white text-sm font-medium">Envoi en cours...</span>
+                  <span className="text-white text-sm font-bold">{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 h-full rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${uploadProgress}%` }}
+                  >
+                    <div className="w-full h-full bg-white/20 animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
             )}
-          </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-gradient-to-r from-pink-600 via-purple-600 to-blue-600 hover:from-pink-700 hover:via-purple-700 hover:to-blue-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Envoi en cours...
+                </>
+              ) : (
+                <>
+                  Soumettre le projet
+                </>
+              )}
+            </button>
+          </div>
         </form>
       </div>
     </div>
