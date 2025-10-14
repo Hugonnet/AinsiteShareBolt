@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Calendar, MapPin, Building, Filter, X, Download } from 'lucide-react';
+import { Calendar, MapPin, Building, Filter, X, Download, Trash2, Edit2, Save, XCircle } from 'lucide-react';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -28,6 +28,9 @@ export function AdminPage() {
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [editingSubmission, setEditingSubmission] = useState<Submission | null>(null);
+  const [editForm, setEditForm] = useState<Partial<Submission>>({});
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     loadSubmissions();
@@ -72,13 +75,17 @@ export function AdminPage() {
   };
 
   const downloadArchive = async (submission: Submission) => {
+    setDownloadingId(submission.id);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-archive`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -93,10 +100,86 @@ export function AdminPage() {
         const data = await response.json();
         if (data.archiveUrl) {
           window.open(data.archiveUrl, '_blank');
+        } else {
+          alert('Erreur: URL d\'archive non disponible');
         }
+      } else {
+        const errorData = await response.json();
+        alert(`Erreur lors de la création de l'archive: ${errorData.error || 'Erreur inconnue'}`);
       }
     } catch (error) {
       console.error('Error downloading archive:', error);
+      alert('Erreur lors du téléchargement de l\'archive');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  const deleteSubmission = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('file_submissions')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setSelectedSubmission(null);
+      await loadSubmissions();
+      alert('Projet supprimé avec succès');
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      alert('Erreur lors de la suppression');
+    }
+  };
+
+  const startEditing = (submission: Submission) => {
+    setEditingSubmission(submission);
+    setEditForm({
+      entreprise: submission.entreprise,
+      ville: submission.ville,
+      departement: submission.departement,
+      type_projet: submission.type_projet,
+      message: submission.message,
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingSubmission(null);
+    setEditForm({});
+  };
+
+  const saveEdit = async () => {
+    if (!editingSubmission) return;
+
+    try {
+      const { error } = await supabase
+        .from('file_submissions')
+        .update({
+          entreprise: editForm.entreprise,
+          ville: editForm.ville,
+          departement: editForm.departement,
+          type_projet: editForm.type_projet,
+          message: editForm.message,
+        })
+        .eq('id', editingSubmission.id);
+
+      if (error) throw error;
+
+      setEditingSubmission(null);
+      setEditForm({});
+      if (selectedSubmission?.id === editingSubmission.id) {
+        setSelectedSubmission(null);
+      }
+      await loadSubmissions();
+      alert('Projet modifié avec succès');
+    } catch (error) {
+      console.error('Error updating submission:', error);
+      alert('Erreur lors de la modification');
     }
   };
 
@@ -179,16 +262,45 @@ export function AdminPage() {
                     )}
                   </div>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    downloadArchive(submission);
-                  }}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2 transition-colors"
-                >
-                  <Download className="w-4 h-4" />
-                  Archive
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEditing(submission);
+                    }}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSubmission(submission.id);
+                    }}
+                    className="px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadArchive(submission);
+                    }}
+                    disabled={downloadingId === submission.id}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {downloadingId === submission.id ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        Archive
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="flex gap-2">
@@ -216,6 +328,109 @@ export function AdminPage() {
           ))}
         </div>
       </div>
+
+      {editingSubmission && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={cancelEditing}
+        >
+          <div
+            className="bg-zinc-900 rounded-xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between mb-6">
+              <h2 className="text-2xl font-bold">Modifier le projet</h2>
+              <button
+                onClick={cancelEditing}
+                className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Entreprise
+                </label>
+                <input
+                  type="text"
+                  value={editForm.entreprise || ''}
+                  onChange={(e) => setEditForm({ ...editForm, entreprise: e.target.value })}
+                  className="w-full px-4 py-3 bg-zinc-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Ville
+                </label>
+                <input
+                  type="text"
+                  value={editForm.ville || ''}
+                  onChange={(e) => setEditForm({ ...editForm, ville: e.target.value })}
+                  className="w-full px-4 py-3 bg-zinc-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Département
+                </label>
+                <input
+                  type="text"
+                  value={editForm.departement || ''}
+                  onChange={(e) => setEditForm({ ...editForm, departement: e.target.value })}
+                  className="w-full px-4 py-3 bg-zinc-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Type de projet
+                </label>
+                <select
+                  value={editForm.type_projet || 'neuf'}
+                  onChange={(e) => setEditForm({ ...editForm, type_projet: e.target.value })}
+                  className="w-full px-4 py-3 bg-zinc-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="neuf">Projet neuf</option>
+                  <option value="renovation">Rénovation</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-400 mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={editForm.message || ''}
+                  onChange={(e) => setEditForm({ ...editForm, message: e.target.value })}
+                  rows={4}
+                  className="w-full px-4 py-3 bg-zinc-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={cancelEditing}
+                  className="flex-1 px-6 py-3 bg-zinc-800 hover:bg-zinc-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <XCircle className="w-5 h-5" />
+                  Annuler
+                </button>
+                <button
+                  onClick={saveEdit}
+                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Save className="w-5 h-5" />
+                  Enregistrer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedSubmission && (
         <div
@@ -298,13 +513,39 @@ export function AdminPage() {
                 </div>
               )}
 
-              <button
-                onClick={() => downloadArchive(selectedSubmission)}
-                className="w-full px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
-              >
-                <Download className="w-5 h-5" />
-                Télécharger l'archive complète
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => startEditing(selectedSubmission)}
+                  className="flex-1 px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Edit2 className="w-5 h-5" />
+                  Modifier
+                </button>
+                <button
+                  onClick={() => deleteSubmission(selectedSubmission.id)}
+                  className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Trash2 className="w-5 h-5" />
+                  Supprimer
+                </button>
+                <button
+                  onClick={() => downloadArchive(selectedSubmission)}
+                  disabled={downloadingId === selectedSubmission.id}
+                  className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {downloadingId === selectedSubmission.id ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Création...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      Archive
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
