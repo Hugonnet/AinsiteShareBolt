@@ -15,15 +15,19 @@ function ProjectFiles({ submissionId }: { submissionId: string }) {
   useEffect(() => {
     const loadFiles = async () => {
       try {
-        const { data } = await supabase.storage
+        console.log('Loading files for submission:', submissionId);
+        const { data, error } = await supabase.storage
           .from('construction-files')
           .list(submissionId);
+
+        console.log('Files data:', data, 'Error:', error);
 
         if (data && data.length > 0) {
           const fileUrls = data.map(file => {
             const { data: urlData } = supabase.storage
               .from('construction-files')
               .getPublicUrl(`${submissionId}/${file.name}`);
+            console.log('File URL:', urlData.publicUrl);
             return {
               name: file.name,
               url: urlData.publicUrl,
