@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { zip } from "npm:fflate@0.8.2";
+import JSZip from "npm:jszip@3.10.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -134,23 +134,15 @@ Deno.serve(async (req: Request) => {
 
     const fileDataArray = (await Promise.all(fileDataPromises)).filter((f) => f !== null);
 
-    const zipData = await new Promise<Uint8Array>((resolve, reject) => {
-      const fileMap: Record<string, Uint8Array> = {};
+    const jszip = new JSZip();
 
-      for (const fileData of fileDataArray) {
-        if (fileData) {
-          fileMap[fileData.name] = fileData.data;
-        }
+    for (const fileData of fileDataArray) {
+      if (fileData) {
+        jszip.file(fileData.name, fileData.data);
       }
+    }
 
-      zip(fileMap, { level: 6 }, (err, data) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(data);
-        }
-      });
-    });
+    const zipData = await jszip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
 
     const { error: uploadError } = await supabase.storage
       .from("construction-files")
