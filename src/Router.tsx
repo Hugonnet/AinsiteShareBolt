@@ -21,8 +21,16 @@ export function Router() {
       setScrolled(window.scrollY > 20);
     };
 
+    const handleNavigateToAdmin = () => {
+      setCurrentPage('admin');
+    };
+
     window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('navigate-to-admin', handleNavigateToAdmin);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('navigate-to-admin', handleNavigateToAdmin);
+    };
   }, []);
 
   useEffect(() => {
@@ -62,16 +70,17 @@ export function Router() {
       <header
         className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-md border-b border-gray-800"
       >
-        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-center">
           <button
             onClick={() => setCurrentPage('form')}
-            className="text-3xl font-bold hover:opacity-80 transition-opacity"
+            className="text-5xl font-bold hover:opacity-80 transition-opacity"
           >
-            <span className="text-gray-400">@insite</span>
+            <span className="text-red-500">@</span>
+            <span className="text-gray-400">insite</span>
             <span className="text-red-500">.net</span>
           </button>
 
-          <nav className="flex items-center gap-4">
+          <nav className="hidden">
             {currentPage === 'form' ? (
               <button
                 onClick={() => setCurrentPage('admin')}

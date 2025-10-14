@@ -542,6 +542,17 @@ function App() {
                 </>
               )}
             </button>
+            <a
+              href="#admin"
+              onClick={(e) => {
+                e.preventDefault();
+                const event = new CustomEvent('navigate-to-admin');
+                window.dispatchEvent(event);
+              }}
+              className="block text-center text-gray-600 text-xs hover:text-gray-500 transition-colors py-2"
+            >
+              Admin
+            </a>
           </div>
         </form>
       </div>
