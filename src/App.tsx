@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, Send, Mic, Square, Trash2, Play, MapPin, AlertCircle } from 'lucide-react';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useAudioRecorder } from './hooks/useAudioRecorder';
@@ -18,6 +18,16 @@ function App() {
 
   const location = useGeolocation();
   const audioRecorder = useAudioRecorder();
+
+  useEffect(() => {
+    if (useAutoLocation && location.city && location.department) {
+      setFormData(prev => ({
+        ...prev,
+        ville: location.city || '',
+        departement: location.department || '',
+      }));
+    }
+  }, [useAutoLocation, location.city, location.department]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
@@ -53,7 +63,7 @@ function App() {
     try {
       const formDataToSend = new FormData();
       formDataToSend.append('entreprise', formData.entreprise);
-      formDataToSend.append('ville', useAutoLocation && location.latitude ? 'Géolocalisation automatique' : formData.ville);
+      formDataToSend.append('ville', formData.ville);
       formDataToSend.append('departement', formData.departement);
       formDataToSend.append('typeProjet', formData.typeProjet);
       formDataToSend.append('description', formData.description);
@@ -178,12 +188,22 @@ function App() {
               Géolocalisation automatique
             </button>
 
-            {useAutoLocation && location.latitude && location.longitude && (
+            {useAutoLocation && location.city && location.department && (
               <div className="mb-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                <p className="text-green-400 text-sm">
-                  Position détectée: {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                  {location.accuracy && ` (±${Math.round(location.accuracy)}m)`}
+                <p className="text-green-400 text-sm font-medium">
+                  Localisation détectée: {location.city}, département {location.department}
                 </p>
+                {location.accuracy && (
+                  <p className="text-green-400/70 text-xs mt-1">
+                    Précision: ±{Math.round(location.accuracy)}m
+                  </p>
+                )}
+              </div>
+            )}
+
+            {useAutoLocation && location.loading && (
+              <div className="mb-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <p className="text-blue-400 text-sm">Récupération de la localisation...</p>
               </div>
             )}
 
@@ -194,18 +214,17 @@ function App() {
               </div>
             )}
 
-            {!useAutoLocation && (
-              <input
-                type="text"
-                id="ville"
-                name="ville"
-                required={!useAutoLocation}
-                value={formData.ville}
-                onChange={handleInputChange}
-                className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
-                placeholder="Ou entrez le nom de la ville"
-              />
-            )}
+            <input
+              type="text"
+              id="ville"
+              name="ville"
+              required
+              value={formData.ville}
+              onChange={handleInputChange}
+              disabled={useAutoLocation}
+              className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              placeholder="Ou entrez le nom de la ville"
+            />
           </div>
 
           <div>
@@ -219,7 +238,8 @@ function App() {
               required
               value={formData.departement}
               onChange={handleInputChange}
-              className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+              disabled={useAutoLocation}
+              className="w-full px-4 py-3 bg-black border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               placeholder="Exemple : 01"
             />
           </div>
