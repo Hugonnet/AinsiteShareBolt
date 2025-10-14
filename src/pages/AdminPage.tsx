@@ -329,7 +329,7 @@ export function AdminPage() {
   return (
     <div className="min-h-screen bg-black text-white p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">Administration - Projets</h1>
+        <h1 className="text-3xl font-bold mb-8">Projets</h1>
 
         <div className="bg-zinc-900 rounded-xl p-6 border border-gray-800 mb-6">
           <div className="flex items-center gap-3 mb-4">
