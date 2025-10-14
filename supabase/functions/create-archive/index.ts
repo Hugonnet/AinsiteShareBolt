@@ -104,6 +104,24 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    if (submission.video_url) {
+      const videoFileName = submission.video_url.split('/').pop();
+      if (videoFileName) {
+        const { data: videoData, error: videoError } = await supabase.storage
+          .from("video-recordings")
+          .download(videoFileName);
+
+        if (!videoError && videoData) {
+          const arrayBuffer = await videoData.arrayBuffer();
+          const extension = videoFileName.split('.').pop() || 'mp4';
+          fileDataPromises.push(Promise.resolve({
+            name: `video.${extension}`,
+            data: new Uint8Array(arrayBuffer),
+          }));
+        }
+      }
+    }
+
     const fileDataArray = (await Promise.all(fileDataPromises)).filter((f) => f !== null);
 
     const zipData = await new Promise<Uint8Array>((resolve, reject) => {

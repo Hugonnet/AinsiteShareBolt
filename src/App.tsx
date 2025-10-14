@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Upload, Send, Mic, Square, Trash2, Play, MapPin, AlertCircle } from 'lucide-react';
+import { Upload, Send, Mic, Square, Trash2, Play, MapPin, AlertCircle, Video, X } from 'lucide-react';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useAudioRecorder } from './hooks/useAudioRecorder';
 
@@ -12,6 +12,8 @@ function App() {
     description: '',
   });
   const [files, setFiles] = useState<FileList | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [useAutoLocation, setUseAutoLocation] = useState(false);
@@ -49,6 +51,37 @@ function App() {
     }
   };
 
+  const handleVideoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+
+      video.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(video.src);
+        const duration = Math.floor(video.duration);
+
+        if (duration > 40) {
+          alert('La vidéo ne doit pas dépasser 40 secondes');
+          e.target.value = '';
+          return;
+        }
+
+        setVideoFile(file);
+        setVideoDuration(duration);
+      };
+
+      video.src = URL.createObjectURL(file);
+    }
+  };
+
+  const removeVideo = () => {
+    setVideoFile(null);
+    setVideoDuration(0);
+    const videoInput = document.getElementById('video-upload') as HTMLInputElement;
+    if (videoInput) videoInput.value = '';
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -84,6 +117,11 @@ function App() {
         formDataToSend.append('audioDuration', audioRecorder.recordingTime.toString());
       }
 
+      if (videoFile) {
+        formDataToSend.append('video', videoFile);
+        formDataToSend.append('videoDuration', videoDuration.toString());
+      }
+
       if (files) {
         for (let i = 0; i < files.length; i++) {
           formDataToSend.append('files', files[i]);
@@ -108,10 +146,14 @@ function App() {
       setSubmitStatus('success');
       setFormData({ entreprise: '', ville: '', departement: '', typeProjet: 'neuf', description: '' });
       setFiles(null);
+      setVideoFile(null);
+      setVideoDuration(0);
       setUseAutoLocation(false);
       audioRecorder.deleteRecording();
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
+      const videoInput = document.getElementById('video-upload') as HTMLInputElement;
+      if (videoInput) videoInput.value = '';
 
       setTimeout(() => setSubmitStatus('idle'), 5000);
     } catch (error) {
@@ -188,18 +230,6 @@ function App() {
               Géolocalisation automatique
             </button>
 
-            {useAutoLocation && location.city && location.department && (
-              <div className="mb-3 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
-                <p className="text-green-400 text-sm font-medium">
-                  Localisation détectée: {location.city}, département {location.department}
-                </p>
-                {location.accuracy && (
-                  <p className="text-green-400/70 text-xs mt-1">
-                    Précision: ±{Math.round(location.accuracy)}m
-                  </p>
-                )}
-              </div>
-            )}
 
             {useAutoLocation && location.loading && (
               <div className="mb-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
@@ -372,6 +402,58 @@ function App() {
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-zinc-900 rounded-xl p-6 border border-gray-800">
+            <label className="block text-white font-medium mb-3">
+              Vidéo (optionnel, max 40 secondes)
+            </label>
+            {!videoFile ? (
+              <div className="relative">
+                <input
+                  type="file"
+                  id="video-upload"
+                  accept="video/mp4,video/webm,video/quicktime"
+                  onChange={handleVideoChange}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="video-upload"
+                  className="block w-full px-4 py-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg cursor-pointer transition-all text-center text-white font-medium flex items-center justify-center gap-2 border border-gray-700"
+                >
+                  <Video className="w-5 h-5" />
+                  Ajouter une vidéo
+                </label>
+                <p className="text-gray-500 text-sm text-center mt-3">
+                  MP4, WebM ou MOV - Durée maximale: 40 secondes
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-4 bg-blue-500/20 border border-blue-500/50 rounded-lg">
+                  <Video className="w-5 h-5 text-blue-400" />
+                  <div className="flex-1">
+                    <p className="text-blue-400 text-sm font-medium">{videoFile.name}</p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      Durée: {formatTime(videoDuration)} - {(videoFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={removeVideo}
+                    className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-red-400" />
+                  </button>
+                </div>
+                <video
+                  src={URL.createObjectURL(videoFile)}
+                  controls
+                  className="w-full rounded-lg"
+                  style={{ maxHeight: '300px' }}
+                />
               </div>
             )}
           </div>

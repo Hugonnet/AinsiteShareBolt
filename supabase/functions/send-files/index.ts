@@ -27,8 +27,10 @@ Deno.serve(async (req: Request) => {
     const longitude = formData.get("longitude") as string || null;
     const accuracy = formData.get("accuracy") as string || null;
     const audioDuration = formData.get("audioDuration") as string || null;
+    const videoDuration = formData.get("videoDuration") as string || null;
     const files = formData.getAll("files") as File[];
     const audioFile = formData.get("audio") as File | null;
+    const videoFile = formData.get("video") as File | null;
 
     if (!entreprise) {
       return new Response(
@@ -56,6 +58,7 @@ Deno.serve(async (req: Request) => {
     );
 
     let audioUrl = null;
+    let videoUrl = null;
 
     if (audioFile) {
       const timestamp = Date.now();
@@ -78,6 +81,28 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    if (videoFile) {
+      const timestamp = Date.now();
+      const fileExtension = videoFile.name.split('.').pop() || 'mp4';
+      const videoPath = `${timestamp}_video.${fileExtension}`;
+      const arrayBuffer = await videoFile.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      const { data: videoUploadData, error: videoUploadError } = await supabase.storage
+        .from("video-recordings")
+        .upload(videoPath, uint8Array, {
+          contentType: videoFile.type || "video/mp4",
+          upsert: false,
+        });
+
+      if (!videoUploadError && videoUploadData) {
+        const { data: videoUrlData } = supabase.storage
+          .from("video-recordings")
+          .getPublicUrl(videoPath);
+        videoUrl = videoUrlData.publicUrl;
+      }
+    }
+
     const { data: submission, error: dbError } = await supabase
       .from("file_submissions")
       .insert({
@@ -91,6 +116,8 @@ Deno.serve(async (req: Request) => {
         location_accuracy: accuracy ? parseFloat(accuracy) : null,
         audio_description_url: audioUrl,
         audio_duration: audioDuration ? parseInt(audioDuration) : null,
+        video_url: videoUrl,
+        video_duration: videoDuration ? parseInt(videoDuration) : null,
       })
       .select()
       .single();
@@ -139,31 +166,39 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const archiveResponse = await fetch(
-      `${Deno.env.get("SUPABASE_URL")}/functions/v1/create-archive`,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          submissionId: submission.id,
-          ville: ville,
-          departement: departement,
-        }),
-      }
-    );
-
     let archiveUrl = null;
     let archiveName = null;
 
-    if (archiveResponse.ok) {
-      const archiveData = await archiveResponse.json();
-      archiveUrl = archiveData.archiveUrl;
-      archiveName = archiveData.archiveName;
-    } else {
-      console.error("Failed to create archive");
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      const archiveResponse = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/create-archive`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            submissionId: submission.id,
+            ville: ville,
+            departement: departement,
+          }),
+        }
+      );
+
+      if (archiveResponse.ok) {
+        const archiveData = await archiveResponse.json();
+        archiveUrl = archiveData.archiveUrl;
+        archiveName = archiveData.archiveName;
+        console.log("Archive created:", archiveName, archiveUrl);
+      } else {
+        const errorText = await archiveResponse.text();
+        console.error("Archive creation failed:", archiveResponse.status, errorText);
+      }
+    } catch (archiveError) {
+      console.error("Archive error:", archiveError);
     }
 
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -206,6 +241,16 @@ Deno.serve(async (req: Request) => {
         <p style="color: #4b5563; line-height: 1.6; margin: 0; background-color: #f9fafb; padding: 16px; border-radius: 8px;">
           Durée: ${audioDuration ? `${Math.floor(parseInt(audioDuration) / 60)}:${(parseInt(audioDuration) % 60).toString().padStart(2, '0')}` : 'N/A'}<br>
           <a href="${audioUrl}" style="color: #3b82f6; text-decoration: none; font-weight: 500;">Écouter l'enregistrement</a>
+        </p>
+      </div>
+    ` : '';
+
+    const videoInfo = videoUrl ? `
+      <div style="margin-bottom: 24px;">
+        <h2 style="color: #374151; font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">🎬 Vidéo</h2>
+        <p style="color: #4b5563; line-height: 1.6; margin: 0; background-color: #f9fafb; padding: 16px; border-radius: 8px;">
+          Durée: ${videoDuration ? `${Math.floor(parseInt(videoDuration) / 60)}:${(parseInt(videoDuration) % 60).toString().padStart(2, '0')}` : 'N/A'}<br>
+          <a href="${videoUrl}" style="color: #3b82f6; text-decoration: none; font-weight: 500;">Voir la vidéo</a>
         </p>
       </div>
     ` : '';
@@ -264,6 +309,7 @@ Deno.serve(async (req: Request) => {
               
               ${locationInfo}
               ${audioInfo}
+              ${videoInfo}
               
               ${description ? `
               <div style="margin-bottom: 24px;">
