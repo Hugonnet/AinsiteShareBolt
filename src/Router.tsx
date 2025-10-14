@@ -77,7 +77,7 @@ export function Router() {
           >
             <span className="text-red-500">@</span>
             <span className="text-gray-400">insite</span>
-            <span className="text-red-500">.net</span>
+            <span className="text-red-500">.Share</span>
           </button>
 
           <nav className="hidden">
