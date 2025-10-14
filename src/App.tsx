@@ -191,7 +191,7 @@ function App() {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
       <div className="w-full max-w-2xl relative">
-        <div className="text-center mb-8">
+        <div className="text-center mb-8 mt-16">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
             Partagez vos réalisations
           </h1>
