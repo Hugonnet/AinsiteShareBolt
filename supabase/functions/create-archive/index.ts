@@ -95,7 +95,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const sanitizedVille = ville?.replace(/[^a-zA-Z0-9]/g, '_') || '';
+    const sanitizeForFilename = (str: string) => {
+      return str
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]/g, '_');
+    };
+
+    const sanitizedVille = ville ? sanitizeForFilename(ville) : '';
     const archiveName = sanitizedVille && departement
       ? `${sanitizedVille}_${departement}_${submissionId.substring(0, 8)}`
       : `projet_${submissionId.substring(0, 8)}`;

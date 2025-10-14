@@ -1,12 +1,95 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
-import { Calendar, MapPin, Building, Filter, X, Download, Trash2, Edit2, Save, XCircle } from 'lucide-react';
+import { Calendar, MapPin, Building, Filter, X, Download, Trash2, Edit2, Save, XCircle, FileText } from 'lucide-react';
 import JSZip from 'jszip';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
+
+function ProjectFiles({ submissionId }: { submissionId: string }) {
+  const [files, setFiles] = useState<Array<{ name: string; url: string }>>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadFiles();
+  }, [submissionId]);
+
+  const loadFiles = async () => {
+    try {
+      const { data } = await supabase.storage
+        .from('construction-files')
+        .list(submissionId);
+
+      if (data && data.length > 0) {
+        const fileUrls = data.map(file => {
+          const { data: urlData } = supabase.storage
+            .from('construction-files')
+            .getPublicUrl(`${submissionId}/${file.name}`);
+          return {
+            name: file.name,
+            url: urlData.publicUrl,
+          };
+        });
+        setFiles(fileUrls);
+      }
+    } catch (error) {
+      console.error('Error loading files:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-zinc-800 rounded-lg p-4 text-center text-gray-400">
+        Chargement des fichiers...
+      </div>
+    );
+  }
+
+  if (files.length === 0) {
+    return null;
+  }
+
+  const isImage = (filename: string) => {
+    return /\.(jpg|jpeg|png|gif|webp)$/i.test(filename);
+  };
+
+  return (
+    <div>
+      <h3 className="text-lg font-semibold mb-2">Photos et fichiers</h3>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {files.map((file) => (
+          <div key={file.name} className="bg-zinc-800 rounded-lg overflow-hidden">
+            {isImage(file.name) ? (
+              <a href={file.url} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={file.url}
+                  alt={file.name}
+                  className="w-full h-40 object-cover hover:opacity-80 transition-opacity cursor-pointer"
+                />
+              </a>
+            ) : (
+              <a
+                href={file.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center justify-center h-40 hover:bg-zinc-700 transition-colors"
+              >
+                <FileText className="w-12 h-12 text-gray-400 mb-2" />
+                <span className="text-sm text-gray-400 px-2 text-center truncate w-full">
+                  {file.name}
+                </span>
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 interface Submission {
   id: string;
@@ -519,6 +602,8 @@ export function AdminPage() {
                   <p className="bg-zinc-800 rounded-lg p-4">{selectedSubmission.message}</p>
                 </div>
               )}
+
+              <ProjectFiles submissionId={selectedSubmission.id} />
 
               {selectedSubmission.audio_description_url && (
                 <div>
