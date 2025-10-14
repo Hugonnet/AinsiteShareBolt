@@ -15,28 +15,39 @@ function ProjectFiles({ submissionId }: { submissionId: string }) {
   useEffect(() => {
     const loadFiles = async () => {
       try {
-        console.log('Loading files for submission:', submissionId);
+        console.log('=== Loading files for submission:', submissionId);
         const { data, error } = await supabase.storage
           .from('construction-files')
           .list(submissionId);
 
-        console.log('Files data:', data, 'Error:', error);
+        console.log('=== Files list result:');
+        console.log('  - Data:', data);
+        console.log('  - Data length:', data?.length);
+        console.log('  - Error:', error);
+
+        if (error) {
+          console.error('=== Storage list error:', error);
+          return;
+        }
 
         if (data && data.length > 0) {
+          console.log('=== Found', data.length, 'files');
           const fileUrls = data.map(file => {
             const { data: urlData } = supabase.storage
               .from('construction-files')
               .getPublicUrl(`${submissionId}/${file.name}`);
-            console.log('File URL:', urlData.publicUrl);
+            console.log('  - File:', file.name, '-> URL:', urlData.publicUrl);
             return {
               name: file.name,
               url: urlData.publicUrl,
             };
           });
           setFiles(fileUrls);
+        } else {
+          console.log('=== No files found in data');
         }
       } catch (error) {
-        console.error('Error loading files:', error);
+        console.error('=== Exception loading files:', error);
       } finally {
         setLoading(false);
       }
