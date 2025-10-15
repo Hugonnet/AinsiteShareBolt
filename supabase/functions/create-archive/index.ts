@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import JSZip from "npm:jszip@3.10.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,30 +71,68 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const fileUrls = files.map(file => {
-      const { data } = supabase.storage
-        .from("construction-files")
-        .getPublicUrl(`${submissionId}/${file.name}`);
-      return {
-        name: file.name,
-        url: data.publicUrl,
-      };
-    });
+    const zip = new JSZip();
+    let fileCount = 0;
+
+    for (const file of files) {
+      try {
+        const { data } = supabase.storage
+          .from("construction-files")
+          .getPublicUrl(`${submissionId}/${file.name}`);
+
+        const response = await fetch(data.publicUrl);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          zip.file(file.name, arrayBuffer);
+          fileCount++;
+          console.log(`Added file to zip: ${file.name}`);
+        }
+      } catch (err) {
+        console.error(`Error adding file ${file.name} to zip:`, err);
+      }
+    }
 
     if (submission.audio_description_url) {
-      fileUrls.push({
-        name: "audio_description.webm",
-        url: submission.audio_description_url,
-      });
+      try {
+        const response = await fetch(submission.audio_description_url);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          zip.file("audio_description.webm", arrayBuffer);
+          fileCount++;
+          console.log("Added audio to zip");
+        }
+      } catch (err) {
+        console.error("Error adding audio to zip:", err);
+      }
     }
 
     if (submission.video_url) {
-      const extension = submission.video_url.split('.').pop() || 'mp4';
-      fileUrls.push({
-        name: `video.${extension}`,
-        url: submission.video_url,
-      });
+      try {
+        const response = await fetch(submission.video_url);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          const extension = submission.video_url.split('.').pop() || 'mp4';
+          zip.file(`video.${extension}`, arrayBuffer);
+          fileCount++;
+          console.log("Added video to zip");
+        }
+      } catch (err) {
+        console.error("Error adding video to zip:", err);
+      }
     }
+
+    if (fileCount === 0) {
+      return new Response(
+        JSON.stringify({ error: "No files could be added to archive" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    console.log(`Generating ZIP with ${fileCount} files...`);
+    const zipBlob = await zip.generateAsync({ type: "uint8array" });
 
     const sanitizeForFilename = (str: string) => {
       return str
@@ -107,13 +146,39 @@ Deno.serve(async (req: Request) => {
       ? `${sanitizedVille}_${departement}_${submissionId.substring(0, 8)}`
       : `projet_${submissionId.substring(0, 8)}`;
 
-    console.log("Returning file list:", fileUrls.length);
+    const zipPath = `archives/${archiveName}.zip`;
+
+    console.log(`Uploading ZIP to storage: ${zipPath}`);
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("construction-files")
+      .upload(zipPath, zipBlob, {
+        contentType: "application/zip",
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error("Error uploading ZIP:", uploadError);
+      return new Response(
+        JSON.stringify({ error: "Failed to upload archive" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("construction-files")
+      .getPublicUrl(zipPath);
+
+    console.log(`Archive created successfully: ${urlData.publicUrl}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         archiveName: archiveName,
-        files: fileUrls,
+        archiveUrl: urlData.publicUrl,
+        filesCount: fileCount,
       }),
       {
         status: 200,

@@ -213,30 +213,15 @@ export function AdminPage() {
 
       if (response.ok) {
         const data = await response.json();
-        if (data.files && data.files.length > 0) {
-          const zip = new JSZip();
-
-          for (const file of data.files) {
-            try {
-              const fileResponse = await fetch(file.url);
-              const blob = await fileResponse.blob();
-              zip.file(file.name, blob);
-            } catch (err) {
-              console.error(`Error downloading file ${file.name}:`, err);
-            }
-          }
-
-          const zipBlob = await zip.generateAsync({ type: 'blob' });
-          const url = URL.createObjectURL(zipBlob);
+        if (data.archiveUrl) {
           const a = document.createElement('a');
-          a.href = url;
+          a.href = data.archiveUrl;
           a.download = `${data.archiveName}.zip`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
-          URL.revokeObjectURL(url);
         } else {
-          alert('Erreur: Aucun fichier à télécharger');
+          alert('Erreur: Archive non disponible');
         }
       } else {
         const errorData = await response.json();
