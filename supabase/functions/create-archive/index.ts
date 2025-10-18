@@ -158,8 +158,13 @@ Deno.serve(async (req: Request) => {
 
     if (uploadError) {
       console.error("Error uploading ZIP:", uploadError);
+      console.error("Upload error details:", JSON.stringify(uploadError, null, 2));
       return new Response(
-        JSON.stringify({ error: "Failed to upload archive" }),
+        JSON.stringify({
+          error: "Failed to upload archive",
+          details: uploadError.message,
+          code: uploadError.code
+        }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
