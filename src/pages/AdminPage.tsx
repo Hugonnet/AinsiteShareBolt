@@ -225,7 +225,11 @@ export function AdminPage() {
         }
       } else {
         const errorData = await response.json();
-        alert(`Erreur lors de la création de l'archive: ${errorData.error || 'Erreur inconnue'}`);
+        console.error('Archive creation error:', errorData);
+        const errorMsg = errorData.details
+          ? `${errorData.error}\n\nDétails: ${errorData.details}\nCode: ${errorData.code || 'N/A'}`
+          : errorData.error || 'Erreur inconnue';
+        alert(`Erreur lors de la création de l'archive: ${errorMsg}`);
       }
     } catch (error) {
       console.error('Error downloading archive:', error);
