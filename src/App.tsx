@@ -193,10 +193,10 @@ function App() {
       <div className="w-full max-w-2xl relative">
         <div className="text-center mb-8 mt-16">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">
-            Partagez vos réalisations
+            Gestion des réalisations
           </h1>
           <p className="text-gray-400 text-lg">
-            Téléchargez et partagez facilement les photos de vos chantiers
+            Téléchargez et partagez facilement les photos de vos réalisations
           </p>
         </div>
 
